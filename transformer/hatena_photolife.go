@@ -6,8 +6,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/catatsuy/movabletype"
@@ -48,7 +52,7 @@ func (t *HatenaPhotolifeTransformer) Transform() (e error) {
 			}
 		}
 
-		imgPath := filepath.Join("/images", t.entry.Basename, filepath.Base(src))
+		imgPath := filepath.Join("/images", toTimestamp(filepath.Base(src)))
 		s.Parent().ReplaceWithHtml(fmt.Sprintf(`{{< figure src="%s" %s >}}`, imgPath, extAttr))
 
 		s.Remove()
@@ -58,7 +62,7 @@ func (t *HatenaPhotolifeTransformer) Transform() (e error) {
 
 func (t *HatenaPhotolifeTransformer) saveImage(src string) error {
 
-	outputImageDir := fmt.Sprintf("%s/%s", t.outputImageRoot, t.entry.Basename)
+	outputImageDir := t.outputImageRoot
 	if err := os.MkdirAll(outputImageDir, 0777); err != nil {
 		return errors.Wrapf(err, "create directory is failed. [%s]", outputImageDir)
 	}
@@ -77,7 +81,7 @@ func (t *HatenaPhotolifeTransformer) saveImage(src string) error {
 		return errors.Wrapf(err, "read file %s is failed", src)
 	}
 
-	filename := filepath.Base(src)
+	filename := toTimestamp(filepath.Base(src))
 	outputImagePath := fmt.Sprintf("%s/%s", outputImageDir, filename)
 	file, err := os.OpenFile(outputImagePath, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
@@ -92,4 +96,29 @@ func (t *HatenaPhotolifeTransformer) saveImage(src string) error {
 		return errors.Wrapf(err, "write file %s is failed", outputImagePath)
 	}
 	return nil
+}
+
+func toTimestamp(basename string) string {
+	ext := path.Ext(basename)
+	seq := strings.TrimSuffix(basename, ext)
+	n, _ := strconv.ParseInt(seq, 0, 64)
+	YShift := int64(10000000000)
+	MShift := int64(100000000)
+	DShift := int64(1000000)
+	hShift := int64(10000)
+	mShift := int64(100)
+	Y := int(n / YShift)
+	n %= YShift
+	M := int(n / MShift)
+	n %= MShift
+	D := int(n / DShift)
+	n %= DShift
+	h := int(n / hShift)
+	n %= hShift
+	m := int(n / mShift)
+	n %= mShift
+	s := int(n)
+	loc, _ := time.LoadLocation("Asia/Tokyo")
+	date := time.Date(Y, time.Month(M), D, h, m, s, 0, loc)
+	return fmt.Sprintf("%d%s", date.Unix(), ext)
 }
