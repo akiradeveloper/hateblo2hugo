@@ -1,6 +1,8 @@
 package main
 
-import "github.com/stormcat24/hateblo2hugo/cmd"
+import (
+	"./cmd"
+)
 
 func main() {
 	cmd.Execute()
